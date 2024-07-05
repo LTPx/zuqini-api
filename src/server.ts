@@ -3,11 +3,8 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 
 import { HttpCode, ONE_HUNDRED, ONE_THOUSAND, SIXTY } from './core/constants';
-
-interface ServerOptions {
-	port: number;
-	apiPrefix: string;
-}
+import { logger } from './utils/logger';
+import { ServerOptions } from './types';
 
 export class Server {
 	private readonly app = express();
@@ -32,6 +29,13 @@ export class Server {
 			})
 		);
 
+		// logger middleware
+		this.app.use((req, res, next) => {
+			const time = new Date(Date.now()).toString();
+			logger.info(`${req.method} ${req.hostname} ${req.path} ${time}`);
+			next();
+		});
+
 		// Test rest api
 		this.app.get('/', (_req: Request, res: Response) => {
 			return res.status(HttpCode.OK).send({
@@ -40,7 +44,7 @@ export class Server {
 		});
 
 		this.app.listen(this.port, () => {
-			console.log(`Server running on port ${this.port}...`);
+			logger.info(`Server running on port ${this.port}...`);
 		});
 	}
 }
