@@ -39,7 +39,7 @@ export class Server {
 		// Test rest api
 		this.app.get('/', (_req: Request, res: Response) => {
 			return res.status(HttpCode.OK).send({
-				message: 'Hello World!'
+				message: 'API is working!!'
 			});
 		});
 
