@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { Request, Router } from 'express';
+import { IncomingMessage } from 'http';
 
 export interface ServerOptions {
 	port: number;
@@ -15,4 +16,12 @@ export interface ErrorResponse {
 	message: string;
 	validationErrors?: ValidationType[];
 	stack?: string;
+}
+
+export interface IncomingMessageExt extends IncomingMessage {
+	rawBody?: string;
+}
+
+export interface RequestExtended extends Request {
+	rawBody?: string;
 }

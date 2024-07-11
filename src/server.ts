@@ -4,7 +4,7 @@ import rateLimit from 'express-rate-limit';
 
 import { HttpCode, ONE_HUNDRED, ONE_THOUSAND, SIXTY } from './constants';
 import { logger } from './utils/logger';
-import { ServerOptions } from './types';
+import { IncomingMessageExt, ServerOptions } from './types';
 import { AppError } from './errors';
 
 export class Server {
@@ -20,7 +20,14 @@ export class Server {
 
 	async start(): Promise<void> {
 		// Middlewares
-		this.app.use(express.json()); // parse json in request body (allow raw)
+		this.app.use(
+			express.json({
+				// store the raw request body to use it for signature verification
+				verify: (req, res, buf, encoding) => {
+					(req as IncomingMessageExt).rawBody = buf?.toString((encoding as BufferEncoding) || 'utf8');
+				}
+			})
+		); // parse json in request body (allow raw)
 		this.app.use(express.urlencoded({ extended: true })); // allow x-www-form-urlencoded
 		this.app.use(compression());
 		// Limit repeated requests to public APIs
