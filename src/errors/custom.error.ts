@@ -45,4 +45,17 @@ export class AppError extends Error {
 	static internalServer(message: string): AppError {
 		return new AppError({ name: 'InternalServerError', message, statusCode: HttpCode.INTERNAL_SERVER_ERROR });
 	}
+
+	static flowEndpointException(message: string): AppError {
+		return new AppError({ name: 'FlowEndpointException', message, statusCode: HttpCode.FLOW_ERROR });
+	}
+}
+
+export class FlowEndpointException extends Error {
+	statusCode: number;
+	constructor(message: string) {
+		super(message);
+		this.name = this.constructor.name;
+		this.statusCode = HttpCode.FLOW_ERROR;
+	}
 }

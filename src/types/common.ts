@@ -25,3 +25,28 @@ export interface IncomingMessageExt extends IncomingMessage {
 export interface RequestExtended extends Request {
 	rawBody?: string;
 }
+
+export interface EncryptedBody {
+	encrypted_aes_key: string;
+	encrypted_flow_data: string;
+	initial_vector: string;
+}
+
+export interface DecryptedBody {
+	screen: string;
+	data: {
+		// TODO Pending to define the type
+		error?: string;
+	};
+	version: string;
+	action: 'ping' | 'INIT' | 'data_exchange';
+	flow_token: string;
+}
+
+export interface ScreenResponse {
+	version: string;
+	screen: string;
+	data: {
+		// TODO Pending to define the type
+	};
+}
