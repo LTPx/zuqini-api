@@ -1,6 +1,7 @@
 import express, { NextFunction, Router, type Request, type Response } from 'express';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import { type Server as ServerHttp, type IncomingMessage, type ServerResponse } from 'http';
 
 import { HttpCode, ONE_HUNDRED, ONE_THOUSAND, SIXTY } from './constants';
 import { logger } from './utils/logger';
@@ -8,9 +9,10 @@ import { IncomingMessageExt, ServerOptions } from './types';
 import { AppError } from './errors';
 
 export class Server {
-	private readonly app = express();
+	public readonly app = express();
 	private readonly port: number;
 	private readonly routes: Router;
+	private serverListener?: ServerHttp<typeof IncomingMessage, typeof ServerResponse>;
 
 	constructor(options: ServerOptions) {
 		const { port, routes } = options;
@@ -61,8 +63,12 @@ export class Server {
 			next(AppError.notFound(`Cant find ${req.originalUrl} on this server!`));
 		});
 
-		this.app.listen(this.port, () => {
+		this.serverListener = this.app.listen(this.port, () => {
 			logger.info(`Server running on port ${this.port}...`);
 		});
+	}
+
+	close(): void {
+		this.serverListener?.close();
 	}
 }
