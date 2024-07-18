@@ -32,6 +32,12 @@ export interface EncryptedBody {
 	initial_vector: string;
 }
 
+export enum FlowActions {
+	PING = 'ping',
+	INIT = 'INIT',
+	DATA_EXCHANGE = 'data_exchange'
+}
+
 export interface DecryptedBody {
 	screen: string;
 	data: {
@@ -39,14 +45,14 @@ export interface DecryptedBody {
 		error?: string;
 	};
 	version: string;
-	action: 'ping' | 'INIT' | 'data_exchange';
+	action: FlowActions;
 	flow_token: string;
 }
 
 export interface ScreenResponse {
 	version: string;
-	screen: string;
-	data: {
-		// TODO Pending to define the type
-	};
+	screen?: string;
+	// TODO Pending to define the type
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	data: any;
 }

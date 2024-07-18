@@ -1,13 +1,24 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { HttpCode } from '../../constants';
 import { envs } from '../../config/env';
 import { AppError, FlowEndpointException } from '../../errors';
 import { isRequestSignatureValid, logger } from '../../utils';
-import { DecryptedBody, EncryptedBody, ScreenResponse } from '../../types';
+import { DecryptedBody, EncryptedBody, FlowActions, ScreenResponse } from '../../types';
 import { decryptRequest, encryptResponse } from '../../utils/encryption';
 
 export class FlowController {
 	private static getNextScreen(decryptedBody: DecryptedBody): ScreenResponse {
+		const { version, action } = decryptedBody;
+		// Handle health check request
+		if (action === FlowActions.PING) {
+			return {
+				version,
+				data: {
+					status: 'active'
+				}
+			};
+		}
+
 		// TODO Implement logic to get the next screen based on the decrypted body
 		const screenResponse: ScreenResponse = {
 			version: decryptedBody.version,
@@ -17,9 +28,10 @@ export class FlowController {
 		return screenResponse;
 	}
 
-	public static async whatsAppFlow(req: Request, res: Response): Promise<void> {
+	public static async whatsAppFlow(req: Request, res: Response, next: NextFunction): Promise<void> {
 		if (!envs.PRIVATE_KEY) {
-			throw AppError.internalServer('Private key is empty. Please check your env variable "PRIVATE_KEY".');
+			logger.error('Private key is empty. Please check your env variable "PRIVATE_KEY".');
+			return next(AppError.internalServer('Private key is empty.'));
 		}
 
 		if (!isRequestSignatureValid(req)) {
@@ -39,11 +51,9 @@ export class FlowController {
 			logger.error(err);
 			if (err instanceof FlowEndpointException) {
 				// TODO Check if we can send a body with the response
-				AppError.flowEndpointException(err.message);
-				return;
+				return next(AppError.flowEndpointException(err.message));
 			}
-			AppError.internalServer('Internal server error. Please check your private key.');
-			return;
+			return next(AppError.internalServer('Internal server error. Please check your private key.'));
 		}
 
 		const { aesKeyBuffer, initialVectorBuffer, decryptedBody } = decryptedRequest;
