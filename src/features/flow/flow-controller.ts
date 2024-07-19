@@ -8,7 +8,7 @@ import { decryptRequest, encryptResponse } from '../../utils/encryption';
 
 export class FlowController {
 	private static getNextScreen(decryptedBody: DecryptedBody): ScreenResponse {
-		const { version, action } = decryptedBody;
+		const { screen, data, version, action } = decryptedBody;
 		// Handle health check request
 		if (action === FlowActions.PING) {
 			return {
@@ -19,13 +19,57 @@ export class FlowController {
 			};
 		}
 
-		// TODO Implement logic to get the next screen based on the decrypted body
-		const screenResponse: ScreenResponse = {
-			version: decryptedBody.version,
-			screen: decryptedBody.screen,
-			data: {}
-		};
-		return screenResponse;
+		// handle error notification
+		if (data?.error) {
+			logger.warn(`Received client error: ${data}`);
+			return {
+				version,
+				data: {
+					acknowledged: true
+				}
+			};
+		}
+
+		// handle initial request when opening the flow
+		if (action === FlowActions.INIT) {
+			return {
+				version,
+				data: {
+					// TODO: Add the initial screen data
+				}
+			};
+		}
+
+		if (action === FlowActions.DATA_EXCHANGE) {
+			// handle the request based on the current screen
+			switch (screen) {
+				case '1':
+					// TODO
+					return {
+						version,
+						data: {
+							// TODO
+						}
+					};
+
+				case '2':
+					// TODO
+					return {
+						version,
+						data: {
+							// TODO
+						}
+					};
+
+				// ...
+
+				default:
+					break;
+			}
+		}
+
+		logger.error(`Unhandled request body: ${decryptedBody}`);
+		throw new Error('Unhandled endpoint request. Make sure you handle the request action & screen.');
 	}
 
 	public static async whatsAppFlow(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -76,10 +120,14 @@ export class FlowController {
     }
     */
 
-		const screenResponse = this.getNextScreen(decryptedBody as DecryptedBody);
-		logger.log('👉 Response to Encrypt:', screenResponse);
-
-		res.send(encryptResponse(screenResponse, aesKeyBuffer, initialVectorBuffer));
+		try {
+			const screenResponse = this.getNextScreen(decryptedBody as DecryptedBody);
+			logger.log('👉 Response to Encrypt:', screenResponse);
+			res.send(encryptResponse(screenResponse, aesKeyBuffer, initialVectorBuffer));
+			return;
+		} catch (err) {
+			return next(AppError.internalServer((err as Error).message));
+		}
 	}
 
 	public static async info(req: Request, res: Response): Promise<void> {
