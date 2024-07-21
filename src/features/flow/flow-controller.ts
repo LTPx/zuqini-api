@@ -1,13 +1,13 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { HttpCode } from '../../constants';
 import { envs } from '../../config/env';
-import { AppError, FlowEndpointException } from '../../errors';
+import { FlowEndpointException } from '../../errors';
 import { isRequestSignatureValid, logger } from '../../utils';
 import { DecryptedBody, EncryptedBody, FlowActions, ScreenResponse } from '../../types';
 import { decryptRequest, encryptResponse } from '../../utils/encryption';
 
 export class FlowController {
-	private static getNextScreen(decryptedBody: DecryptedBody): ScreenResponse {
+	public static getNextScreen(decryptedBody: DecryptedBody): ScreenResponse {
 		const { screen, data, version, action } = decryptedBody;
 		// Handle health check request
 		if (action === FlowActions.PING) {
@@ -68,14 +68,15 @@ export class FlowController {
 			}
 		}
 
-		logger.error(`Unhandled request body: ${decryptedBody}`);
+		logger.error(`Unhandled request body: ${JSON.stringify(decryptedBody)}`);
 		throw new Error('Unhandled endpoint request. Make sure you handle the request action & screen.');
 	}
 
-	public static async whatsAppFlow(req: Request, res: Response, next: NextFunction): Promise<void> {
+	public static async whatsAppFlow(req: Request, res: Response): Promise<void> {
 		if (!envs.PRIVATE_KEY) {
 			logger.error('Private key is empty. Please check your env variable "PRIVATE_KEY".');
-			return next(AppError.internalServer('Private key is empty.'));
+			res.status(HttpCode.INTERNAL_SERVER_ERROR).send({ message: 'Private key is empty.' });
+			return;
 		}
 
 		if (!isRequestSignatureValid(req)) {
@@ -95,13 +96,17 @@ export class FlowController {
 			logger.error(err);
 			if (err instanceof FlowEndpointException) {
 				// TODO Check if we can send a body with the response
-				return next(AppError.flowEndpointException(err.message));
+				res.status(HttpCode.FLOW_ERROR).send({ message: err.message || 'Failed to decrypt the request.' });
+				return;
 			}
-			return next(AppError.internalServer('Internal server error. Please check your private key.'));
+			res
+				.status(HttpCode.INTERNAL_SERVER_ERROR)
+				.send({ message: 'Internal server error. Please check your private key.' });
+			return;
 		}
 
 		const { aesKeyBuffer, initialVectorBuffer, decryptedBody } = decryptedRequest;
-		logger.log('💬 Decrypted Request:', decryptedBody);
+		logger.info(`💬 Decrypted Request: ${decryptedBody}`);
 
 		// TODO: Uncomment this block and add your flow token validation logic.
 		// If the flow token becomes invalid, return HTTP code 427 to disable the flow and show the message in `error_msg` to the user
@@ -121,12 +126,14 @@ export class FlowController {
     */
 
 		try {
-			const screenResponse = this.getNextScreen(decryptedBody as DecryptedBody);
-			logger.log('👉 Response to Encrypt:', screenResponse);
+			const screenResponse = FlowController.getNextScreen(decryptedBody as DecryptedBody);
+			logger.info(`👉 Response to Encrypt: ${screenResponse}`);
 			res.send(encryptResponse(screenResponse, aesKeyBuffer, initialVectorBuffer));
 			return;
 		} catch (err) {
-			return next(AppError.internalServer((err as Error).message));
+			logger.error(err);
+			res.status(HttpCode.INTERNAL_SERVER_ERROR).send({ message: (err as Error).message });
+			return;
 		}
 	}
 

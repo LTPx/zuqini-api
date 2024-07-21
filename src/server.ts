@@ -1,4 +1,4 @@
-import express, { NextFunction, Router, type Request, type Response } from 'express';
+import express, { Router, type Request, type Response } from 'express';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { type Server as ServerHttp, type IncomingMessage, type ServerResponse } from 'http';
@@ -6,7 +6,6 @@ import { type Server as ServerHttp, type IncomingMessage, type ServerResponse } 
 import { HttpCode, ONE_HUNDRED, ONE_THOUSAND, SIXTY } from './constants';
 import { logger } from './utils/logger';
 import { IncomingMessageExt, ServerOptions } from './types';
-import { AppError } from './errors';
 
 export class Server {
 	public readonly app = express();
@@ -59,8 +58,10 @@ export class Server {
 		this.app.use(this.routes);
 
 		// Handle not found routes in /api/v1/* (only if 'Public content folder' is not available)
-		this.routes.all('*', (req: Request, _: Response, next: NextFunction): void => {
-			next(AppError.notFound(`Cant find ${req.originalUrl} on this server!`));
+		this.routes.all('*', (req: Request, res: Response): void => {
+			res.status(HttpCode.NOT_FOUND).send({
+				message: `Cant find ${req.originalUrl} on this server!`
+			});
 		});
 
 		this.serverListener = this.app.listen(this.port, () => {
